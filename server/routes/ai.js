@@ -50,7 +50,7 @@ User Abhishek's Last 7 Days Productivity Data:
     `;
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
 
     const prompt = `You are Abhishek's highly analytical yet friendly personal productivity butler. Analyze the last 7 days of data.
 Data:

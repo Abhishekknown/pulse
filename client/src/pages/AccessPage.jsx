@@ -30,21 +30,23 @@ export default function AccessPage({ onAccess }) {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="·····"
+          placeholder="ENTER PASSWORD"
           autoFocus
+          className="access-input"
           style={{
             width: '100%',
-            padding: '14px 0',
+            padding: '16px 0',
             background: 'transparent',
             border: 'none',
-            borderBottom: '1px solid #27272A',
+            borderBottom: '2px solid #161618',
             outline: 'none',
-            fontSize: '1.125rem',
+            fontSize: '0.9rem',
             fontFamily: 'Inter, -apple-system, sans-serif',
-            letterSpacing: '0.15em',
+            letterSpacing: '0.4em',
             color: '#FFFFFF',
             textAlign: 'center',
-            caretColor: '#71717A',
+            caretColor: '#EF4444',
+            transition: 'border-color 0.3s ease',
             animation: shake ? 'accessShake 0.4s ease' : 'none',
           }}
         />
@@ -53,27 +55,40 @@ export default function AccessPage({ onAccess }) {
           style={{
             display: 'block',
             width: '100%',
-            marginTop: 28,
-            padding: '12px 0',
+            marginTop: 32,
+            padding: '14px 0',
             background: '#FFFFFF',
             color: '#0B0B0C',
             border: 'none',
-            borderRadius: '8px',
-            fontSize: '0.8125rem',
+            borderRadius: '4px',
+            fontSize: '0.75rem',
             fontFamily: 'Inter, -apple-system, sans-serif',
-            fontWeight: 600,
-            letterSpacing: '0.12em',
+            fontWeight: 700,
+            letterSpacing: '0.2em',
             cursor: 'pointer',
-            transition: 'opacity 0.15s ease',
+            transition: 'all 0.2s ease',
           }}
-          onMouseEnter={(e) => e.target.style.opacity = '0.8'}
-          onMouseLeave={(e) => e.target.style.opacity = '1'}
+          onMouseEnter={(e) => e.target.style.transform = 'translateY(-1px)'}
+          onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
         >
-          ENTER
+          {password.length > 0 ? 'SUBMIT' : 'SECURE ACCESS'}
         </button>
       </form>
 
       <style>{`
+        .access-input:focus {
+          border-bottom-color: #FFFFFF !important;
+        }
+
+        /* Fix Chrome/Safari autofill background */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover, 
+        input:-webkit-autofill:focus {
+          -webkit-text-fill-color: #FFFFFF;
+          -webkit-box-shadow: 0 0 0px 1000px #0B0B0C inset;
+          transition: background-color 5000s ease-in-out 0s;
+        }
+
         @keyframes accessShake {
           0%, 100% { transform: translateX(0); }
           20% { transform: translateX(-8px); }
