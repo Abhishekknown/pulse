@@ -71,7 +71,7 @@ Provide the response exactly in this list format with the emojis replacing any b
 
   } catch (err) {
     console.error('Gemini API Error:', err);
-    res.status(500).json({ message: 'Failed to generate insights', error: true });
+    res.status(500).json({ message: `Gemini Error: ${err.message}`, error: true });
   }
 });
 

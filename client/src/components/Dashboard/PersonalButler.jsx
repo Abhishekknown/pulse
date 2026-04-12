@@ -4,6 +4,7 @@ import { getAiInsights } from '../../api/api';
 export default function PersonalButler() {
   const [weather, setWeather] = useState({ temp: null, code: null });
   const [aiInsights, setAiInsights] = useState(null);
+  const [aiError, setAiError] = useState(null);
   const [loadingAi, setLoadingAi] = useState(true);
   
   useEffect(() => {
@@ -26,8 +27,11 @@ export default function PersonalButler() {
         if (res.insights) {
           const points = res.insights.split('\n').filter(p => p.trim());
           setAiInsights(points);
+        } else if (res.error) {
+          setAiError(res.message || 'API integration unavailable.');
         }
       } catch (err) {
+        setAiError(err.message || 'Failed to fetch AI insights.');
         console.error('Failed to fetch AI insights', err);
       } finally {
         setLoadingAi(false);
@@ -98,6 +102,8 @@ export default function PersonalButler() {
                 <div key={i} style={{ fontSize: 'var(--font-sm)', color: 'var(--text-primary)' }}>{pt}</div>
              ))}
            </div>
+        ) : aiError ? (
+           <p style={{ color: 'var(--red)', fontSize: 'var(--font-sm)' }}>⚠️ {aiError}</p>
         ) : (
            <p style={{ color: 'var(--text-dim)', fontSize: 'var(--font-sm)' }}>Insights unavailable. Ensure GEMINI_API_KEY is configured.</p>
         )}
