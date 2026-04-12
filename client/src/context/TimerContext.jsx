@@ -59,6 +59,18 @@ export function TimerProvider({ children }) {
     } catch (e) {}
     // Update document title
     document.title = 'Time\'s up! — Pulse';
+
+    // Automatically stop the task in the backend as 'completed'
+    if (activeTask) {
+      stopTimer({ status: 'completed', comment: 'Session completed naturally' });
+    }
+
+    // Auto-reset after a short delay so user can see "Time's up"
+    setTimeout(() => {
+      if (mode === 'focus') {
+        setTimeLeft(TIMER_MODES.focus.duration);
+      }
+    }, 3000);
   };
 
   // Update document title with timer
@@ -127,9 +139,14 @@ export function TimerProvider({ children }) {
       setActiveTask(null);
       setIsRunning(false);
 
-      // If focus session completed naturally, increment pomodoro count
-      if (mode === 'focus' && sessionCompleted) {
+      // If focus session completed naturally or manually marked as completed, increment pomodoro count
+      if (mode === 'focus' && (sessionCompleted || data.status === 'completed')) {
         setPomodoroCount(prev => prev + 1);
+      }
+
+      // Always reset time to 55m when stopping/completing
+      if (mode === 'focus') {
+        setTimeLeft(TIMER_MODES.focus.duration);
       }
 
       return task;

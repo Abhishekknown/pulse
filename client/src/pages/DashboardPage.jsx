@@ -67,7 +67,7 @@ export default function DashboardPage() {
     if (v !== 'custom') setChartDate(getToday());
   };
 
-  const highestTask = distractionAnalytics?.tasks?.[0]?.title || 'None';
+  const highestCategory = distractionAnalytics?.tasks?.[0]?.title || 'None';
   const worstTiming = distractionAnalytics?.timing?.slice().sort((a,b) => b.count - a.count)?.[0]?.name || 'None';
 
   return (
@@ -170,16 +170,16 @@ export default function DashboardPage() {
           </div>
         </div>
 
-          {/* Task Comparison Chart */}
+          {/* Category Comparison Chart */}
           <div className="glass-card" style={{ marginBottom: 'var(--space-8)' }}>
             <div className="section-header">
-              <h3 className="section-title">Task Comparison</h3>
+              <h3 className="section-title">Category Comparison</h3>
             </div>
             {distractionAnalytics?.tasks?.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={distractionAnalytics.tasks.map(t => ({ title: t.title, distractions: t.distractions, breaks: t.breaks, hours: +(t.time / 3600).toFixed(2) }))}>
+                <BarChart data={distractionAnalytics.tasks.map(t => ({ name: t.title, distractions: t.distractions, breaks: t.breaks, hours: +(t.time / 3600).toFixed(2) }))}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#27272A" vertical={false} />
-                  <XAxis dataKey="title" stroke="#71717A" tick={{ fill: '#71717A', fontSize: 12 }} axisLine={{ stroke: '#27272A' }} tickLine={false} />
+                  <XAxis dataKey="name" stroke="#71717A" tick={{ fill: '#71717A', fontSize: 12 }} axisLine={{ stroke: '#27272A' }} tickLine={false} />
                   <YAxis yAxisId="left" stroke="#71717A" tick={{ fill: '#71717A', fontSize: 12 }} axisLine={false} tickLine={false} />
                   <YAxis yAxisId="right" orientation="right" stroke="#71717A" tick={{ fill: '#71717A', fontSize: 12 }} axisLine={false} tickLine={false} />
                   <Tooltip cursor={{ fill: '#161618' }} contentStyle={{ backgroundColor: '#0B0B0C', border: '1px solid #27272A', borderRadius: '8px', color: '#fff' }} />

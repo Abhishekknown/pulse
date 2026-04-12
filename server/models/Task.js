@@ -43,7 +43,7 @@ const taskSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['running', 'completed', 'manual'],
+    enum: ['running', 'completed', 'manual', 'interrupted'],
     default: 'running'
   }
 }, {

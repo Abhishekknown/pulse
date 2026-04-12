@@ -55,7 +55,7 @@ router.put('/:id/stop', async (req, res) => {
 
     task.endTime = endTime;
     task.duration = duration;
-    task.status = 'completed';
+    task.status = req.body.status || 'completed';
     task.comment = req.body.comment || '';
     task.note = req.body.note || '';
 
@@ -89,7 +89,7 @@ router.get('/active', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const { date, startDate, endDate, sessionType, limit } = req.query;
-    let filter = {};
+    const filter = { status: { $in: ['completed', 'manual', 'interrupted'] } };
 
     if (date) {
       const dayStart = new Date(date);

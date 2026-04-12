@@ -42,8 +42,9 @@ export default function TimerPage() {
   const [newCatName, setNewCatName] = useState('');
   const [newCatColor, setNewCatColor] = useState('#c15c5c');
 
-  // Task modal
+  // Task modal & Choice modal
   const [showTaskModal, setShowTaskModal] = useState(false);
+  const [showStopChoice, setShowStopChoice] = useState(false);
 
   useEffect(() => {
     loadCategories();
@@ -83,8 +84,28 @@ export default function TimerPage() {
     if (mode !== 'focus' || sessionCompleted) {
       await finishSession();
     } else {
-      // Manual stop during focus — ask for break reason
-      setShowBreakReason(true);
+      // Manual stop during focus — show choice modal
+      setShowStopChoice(true);
+    }
+  };
+
+  const handleManualStatus = async (status) => {
+    try {
+      if (status === 'interrupted') {
+        // Log generic distraction for interrupted sessions
+        await logDiscomfort({
+          taskId: activeTask._id,
+          type: 'distraction',
+          intensity: 3,
+          trigger: 'manual_stop',
+          actionTaken: 'took_break'
+        });
+      }
+      await stopTimer({ status, comment: status === 'interrupted' ? 'Session interrupted by user' : 'Completed early by user' });
+      setShowStopChoice(false);
+      loadTodayTasks();
+    } catch (err) {
+      setError(err.message);
     }
   };
 
@@ -184,7 +205,11 @@ export default function TimerPage() {
         </div>
 
         {/* Big Timer */}
-        <div className={`timer-countdown ${isFocusRunning ? 'running' : ''}`}>{timerDisplay}</div>
+        <div className={`timer-countdown ${isFocusRunning ? 'running' : ''}`}>
+          {sessionCompleted && !activeTask ? (
+            <span style={{ fontSize: '0.5em', color: 'var(--red)' }}>Time's up</span>
+          ) : timerDisplay}
+        </div>
 
         {/* Controls */}
         <div className="timer-main-controls">
@@ -388,7 +413,7 @@ export default function TimerPage() {
 
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setShowBreakReason(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleBreakReasonSubmit}
+            <button className="btn btn-primary" onClick={handleBreakReasonSubmit}
                 disabled={!breakReason}>
                 Stop & Log Break
               </button>
@@ -398,22 +423,22 @@ export default function TimerPage() {
       )}
 
       {/* Session Complete Modal */}
-      {sessionCompleted && !showBreakReason && activeTask && (
+      {sessionCompleted && !showBreakReason && activeTask && !showStopChoice && (
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="modal-header">
               <h2 className="modal-title">🎉 {mode === 'focus' ? 'Focus' : 'Break'} Complete!</h2>
             </div>
-
+            
             <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-sm)', marginBottom: 'var(--space-4)' }}>
-              {mode === 'focus'
+              {mode === 'focus' 
                 ? `Great work on "${activeTask.title}"! Ready for a break?`
                 : 'Break is over! Ready to focus again?'}
             </p>
 
             <div className="form-group">
               <label className="form-label">Comment / reflection (optional)</label>
-              <textarea className="form-textarea" placeholder="How did it go?"
+              <textarea className="form-textarea" placeholder="How did it go?" 
                 value={sessionComment} onChange={e => setSessionComment(e.target.value)} rows={2} />
             </div>
 
@@ -422,6 +447,50 @@ export default function TimerPage() {
                 {mode === 'focus' ? '✓ Done — Start Break' : '✓ Done — Back to Focus'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Stop Choice Modal */}
+      {showStopChoice && activeTask && (
+        <div className="modal-overlay" onClick={() => setShowStopChoice(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">Session Interrupted</h2>
+              <button className="modal-close" onClick={() => setShowStopChoice(false)}>✕</button>
+            </div>
+
+            <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-sm)', marginBottom: 'var(--space-8)' }}>
+              How would you like to mark this session for "{activeTask.title}"?
+            </p>
+
+            <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
+              <button 
+                className="btn btn-primary" 
+                style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: '4px', height: 'auto' }}
+                onClick={() => handleManualStatus('completed')}
+              >
+                <span style={{ fontSize: 'var(--font-md)' }}>Mark as Completed</span>
+                <span style={{ fontSize: 'var(--font-xs)', opacity: 0.8, fontWeight: 400 }}>I finished my goal early</span>
+              </button>
+              
+              <button 
+                className="btn btn-secondary" 
+                style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: '4px', height: 'auto', border: '1px solid var(--red-subtle)', color: 'var(--red)' }}
+                onClick={() => handleManualStatus('interrupted')}
+              >
+                <span style={{ fontSize: 'var(--font-md)' }}>Mark as Distraction</span>
+                <span style={{ fontSize: 'var(--font-xs)', opacity: 0.8, fontWeight: 400 }}>I got interrupted or lost focus</span>
+              </button>
+            </div>
+
+            <button 
+              className="btn btn-ghost" 
+              style={{ width: '100%', marginTop: 'var(--space-6)' }}
+              onClick={() => setShowStopChoice(false)}
+            >
+              Cancel (Keep Working)
+            </button>
           </div>
         </div>
       )}

@@ -10,7 +10,7 @@ router.get('/overview', async (req, res) => {
     // Total focused time (all focus sessions ever)
     const focusSessions = await Task.find({
       sessionType: 'focus',
-      status: { $in: ['completed', 'manual'] }
+      status: { $in: ['completed', 'manual', 'interrupted'] }
     });
     const totalFocusTime = focusSessions.reduce((s, t) => s + (t.duration || 0), 0);
 
@@ -191,7 +191,7 @@ router.get('/chart', async (req, res) => {
     // Fetch all focus sessions in the range
     const sessions = await Task.find({
       sessionType: 'focus',
-      status: { $in: ['completed', 'manual'] },
+      status: { $in: ['completed', 'manual', 'interrupted'] },
       startTime: { $gte: startDate, $lte: endDate }
     }).populate('category');
 
@@ -260,7 +260,7 @@ router.get('/category-summary', async (req, res) => {
     const { startDate, endDate } = req.query;
     let filter = {
       sessionType: 'focus',
-      status: { $in: ['completed', 'manual'] }
+      status: { $in: ['completed', 'manual', 'interrupted'] }
     };
 
     if (startDate && endDate) {
@@ -300,7 +300,7 @@ router.get('/task-summary', async (req, res) => {
     const { startDate, endDate } = req.query;
     let filter = {
       sessionType: 'focus',
-      status: { $in: ['completed', 'manual'] }
+      status: { $in: ['completed', 'manual', 'interrupted'] }
     };
 
     if (startDate && endDate) {
@@ -353,7 +353,7 @@ router.get('/focus-logs', async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    const filter = { status: { $in: ['completed', 'manual'] } };
+    const filter = { status: { $in: ['completed', 'manual', 'interrupted'] } };
 
     const total = await Task.countDocuments(filter);
     const logs = await Task.find(filter)
@@ -429,7 +429,7 @@ router.get('/timeline', async (req, res) => {
 router.get('/advanced-metrics', async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    let filter = { sessionType: 'focus', status: { $in: ['completed', 'manual'] } };
+    let filter = { sessionType: 'focus', status: { $in: ['completed', 'manual', 'interrupted'] } };
     
     let startD, endD;
     if (startDate && endDate) {
@@ -486,7 +486,7 @@ router.get('/advanced-metrics', async (req, res) => {
 router.get('/distraction-analytics', async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    let filter = { sessionType: 'focus', status: { $in: ['completed', 'manual'] } };
+    let filter = { sessionType: 'focus', status: { $in: ['completed', 'manual', 'interrupted'] } };
     
     if (startDate && endDate) {
       const startD = new Date(startDate);
@@ -496,28 +496,33 @@ router.get('/distraction-analytics', async (req, res) => {
       filter.startTime = { $gte: startD, $lte: endD };
     }
     
-    const sessions = await Task.find(filter);
+    const sessions = await Task.find(filter).populate('category');
     const sessionIds = sessions.map(s => s._id);
 
-    const discomforts = await Discomfort.find({ taskId: { $in: sessionIds } }).populate('taskId');
+    const discomforts = await Discomfort.find({ taskId: { $in: sessionIds } })
+      .populate({
+        path: 'taskId',
+        populate: { path: 'category' }
+      });
     
-    // Distractions Per Task
-    const tasksMap = {};
+    // Distractions Per Category
+    const categoryMap = {};
     
     sessions.forEach(s => {
-       if (!tasksMap[s.title]) tasksMap[s.title] = { title: s.title, distractions: 0, breaks: 0, time: 0 };
-       tasksMap[s.title].time += (s.duration || 0);
+       const catName = s.category?.name || 'Uncategorized';
+       if (!categoryMap[catName]) categoryMap[catName] = { title: catName, distractions: 0, breaks: 0, time: 0 };
+       categoryMap[catName].time += (s.duration || 0);
     });
 
     discomforts.forEach(d => {
       if (!d.taskId) return;
-      const title = d.taskId.title || 'Unknown';
-      if (!tasksMap[title]) tasksMap[title] = { title, distractions: 0, breaks: 0, time: d.taskId.duration || 0 };
+      const catName = d.taskId.category?.name || 'Uncategorized';
+      if (!categoryMap[catName]) categoryMap[catName] = { title: catName, distractions: 0, breaks: 0, time: d.taskId.duration || 0 };
       
       if (d.actionTaken === 'took_break') {
-        tasksMap[title].breaks++;
+        categoryMap[catName].breaks++;
       } else if (d.type === 'distraction' || d.actionTaken === 'gave_in' || d.actionTaken === 'switched_task') {
-        tasksMap[title].distractions++;
+        categoryMap[catName].distractions++;
       }
     });
 
@@ -538,7 +543,7 @@ router.get('/distraction-analytics', async (req, res) => {
     const timingArray = Object.keys(timing).map(k => ({ name: k, count: timing[k] }));
 
     res.json({
-      tasks: Object.values(tasksMap).sort((a,b) => b.distractions - a.distractions),
+      tasks: Object.values(categoryMap).sort((a,b) => b.distractions - a.distractions),
       timing: timingArray
     });
   } catch (err) {
