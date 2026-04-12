@@ -130,7 +130,7 @@ export default function DashboardPage() {
               </div>
               <div className="glass-card" style={{ textAlign: 'center', padding: 'var(--space-4)' }}>
                 <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Highest Distraction</div>
-                <div style={{ fontSize: 'var(--font-lg)', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{highestTask}</div>
+                <div style={{ fontSize: 'var(--font-lg)', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{highestCategory}</div>
               </div>
               <div className="glass-card" style={{ textAlign: 'center', padding: 'var(--space-4)' }}>
                 <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Worst Window</div>

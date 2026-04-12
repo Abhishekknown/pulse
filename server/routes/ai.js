@@ -102,7 +102,13 @@ Provide the response exactly in this list format with the emojis replacing any b
       });
     }
 
-    res.status(500).json({ message: `Gemini Error: ${err.message}`, error: true });
+    // Instead of a 500 crash, return a 200 with a clear error flag and message
+    // so the frontend can display it without crashing.
+    res.json({ 
+      error: true, 
+      message: 'Gemini API limit reached. AI insights will return when quota resets.',
+      details: err.message
+    });
   }
 });
 
