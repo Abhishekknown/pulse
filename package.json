@@ -1,0 +1,14 @@
+{
+  "name": "pulse",
+  "version": "1.0.0",
+  "description": "A behavioral tracking tool that connects time, resistance, and action",
+  "scripts": {
+    "server": "cd server && npm run dev",
+    "client": "cd client && npm run dev",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "install-all": "cd server && npm install && cd ../client && npm install"
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
