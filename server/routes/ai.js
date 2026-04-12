@@ -4,6 +4,14 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Task = require('../models/Task');
 const Discomfort = require('../models/Discomfort');
 
+// Simple in-memory cache
+let insightsCache = {
+  data: null,
+  timestamp: null,
+  expiresAt: null
+};
+const CACHE_DURATION = 60 * 60 * 1000; // 1 Hour
+
 router.get('/insights', async (req, res) => {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -12,6 +20,12 @@ router.get('/insights', async (req, res) => {
         message: 'AI integration unavailable. Please configure GEMINI_API_KEY in the backend.',
         error: true
       });
+    }
+
+    // Check cache first
+    const now = Date.now();
+    if (insightsCache.data && insightsCache.expiresAt > now) {
+      return res.json({ insights: insightsCache.data, cached: true });
     }
 
     // Get 7 days of data
@@ -67,10 +81,27 @@ Provide the response exactly in this list format with the emojis replacing any b
     const response = await result.response;
     const text = response.text();
 
+    // Update cache
+    insightsCache = {
+      data: text,
+      timestamp: now,
+      expiresAt: now + CACHE_DURATION
+    };
+
     res.json({ insights: text });
 
   } catch (err) {
     console.error('Gemini API Error:', err);
+    
+    // If we hit a rate limit but have old data, return the old data with a note
+    if ((err.status === 429 || err.message.includes('quota')) && insightsCache.data) {
+      return res.json({ 
+        insights: insightsCache.data, 
+        note: 'Rate limit hit. Showing cached insights.',
+        cached: true 
+      });
+    }
+
     res.status(500).json({ message: `Gemini Error: ${err.message}`, error: true });
   }
 });

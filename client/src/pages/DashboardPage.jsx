@@ -67,8 +67,15 @@ export default function DashboardPage() {
     if (v !== 'custom') setChartDate(getToday());
   };
 
+  // Safety checks for distractions analytics
   const highestCategory = distractionAnalytics?.tasks?.[0]?.title || 'None';
-  const worstTiming = distractionAnalytics?.timing?.slice().sort((a,b) => b.count - a.count)?.[0]?.name || 'None';
+  
+  // Safe sort and access for timing analysis
+  let worstTiming = 'None';
+  if (Array.isArray(distractionAnalytics?.timing) && distractionAnalytics.timing.length > 0) {
+    const sortedTiming = [...distractionAnalytics.timing].sort((a,b) => (b.count || 0) - (a.count || 0));
+    worstTiming = sortedTiming[0]?.name || 'None';
+  }
 
   return (
     <div className="page-container">
