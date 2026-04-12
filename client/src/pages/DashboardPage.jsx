@@ -106,8 +106,9 @@ export default function DashboardPage() {
         )}
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
-        <ActivitySummary overview={overview} />
+      {/* ── Primary Metrics Header ── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+        <h3 className="section-title" style={{ margin: 0 }}>Activity Summary</h3>
         <ExportReport
           overview={overview}
           chartData={chartData}
@@ -119,39 +120,45 @@ export default function DashboardPage() {
         />
       </div>
 
+      {/* ── Primary Metric Cards ── */}
+      <ActivitySummary overview={overview} />
+
       {loading ? (
         <div className="loading-container"><div className="spinner" /></div>
       ) : (
         <>
-          {/* Advanced Metric Cards */}
+          {/* ── Secondary Metrics Section ── */}
           {advancedMetrics && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-8)' }}>
-              <div className="glass-card" style={{ textAlign: 'center', padding: 'var(--space-4)' }}>
-                <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Efficiency Ratio</div>
-                <div style={{ fontSize: 'var(--font-2xl)', fontWeight: 600, color: 'var(--text-primary)' }}>{advancedMetrics.focusEfficiency}</div>
-                <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-muted)', marginTop: 'var(--space-1)' }}>Hours / Friction</div>
-              </div>
-              <div className="glass-card" style={{ textAlign: 'center', padding: 'var(--space-4)' }}>
-                <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Peak Zone</div>
-                <div style={{ fontSize: 'var(--font-xl)', fontWeight: 600, color: 'var(--text-primary)' }}>{advancedMetrics.peakProductivityZone}</div>
-                <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-muted)', marginTop: 'var(--space-1)' }}>Highest Focus</div>
-              </div>
-              <div className="glass-card" style={{ textAlign: 'center', padding: 'var(--space-4)' }}>
-                <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Session Density</div>
-                <div style={{ fontSize: 'var(--font-2xl)', fontWeight: 600, color: 'var(--text-primary)' }}>{advancedMetrics.sessionDensity}</div>
-              </div>
-              <div className="glass-card" style={{ textAlign: 'center', padding: 'var(--space-4)' }}>
-                <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Highest Distraction</div>
-                <div style={{ fontSize: 'var(--font-lg)', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{highestCategory}</div>
-              </div>
-              <div className="glass-card" style={{ textAlign: 'center', padding: 'var(--space-4)' }}>
-                <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Worst Window</div>
-                <div style={{ fontSize: 'var(--font-lg)', fontWeight: 600, color: '#EF4444' }}>{worstTiming}</div>
+            <div style={{ marginBottom: 'var(--space-8)' }}>
+              <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500, marginBottom: 'var(--space-4)' }}>Insights</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--space-4)' }}>
+                <div className="glass-card" style={{ textAlign: 'center', padding: 'var(--space-4)' }}>
+                  <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Efficiency Ratio</div>
+                  <div style={{ fontSize: 'var(--font-2xl)', fontWeight: 600, color: 'var(--text-primary)' }}>{advancedMetrics.focusEfficiency}</div>
+                  <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-muted)', marginTop: 'var(--space-1)' }}>Hours / Friction</div>
+                </div>
+                <div className="glass-card" style={{ textAlign: 'center', padding: 'var(--space-4)' }}>
+                  <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Peak Zone</div>
+                  <div style={{ fontSize: 'var(--font-xl)', fontWeight: 600, color: 'var(--text-primary)' }}>{advancedMetrics.peakProductivityZone}</div>
+                  <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-muted)', marginTop: 'var(--space-1)' }}>Highest Focus</div>
+                </div>
+                <div className="glass-card" style={{ textAlign: 'center', padding: 'var(--space-4)' }}>
+                  <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Session Density</div>
+                  <div style={{ fontSize: 'var(--font-2xl)', fontWeight: 600, color: 'var(--text-primary)' }}>{advancedMetrics.sessionDensity}</div>
+                </div>
+                <div className="glass-card" style={{ textAlign: 'center', padding: 'var(--space-4)' }}>
+                  <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Highest Distraction</div>
+                  <div style={{ fontSize: 'var(--font-lg)', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{highestCategory}</div>
+                </div>
+                <div className="glass-card" style={{ textAlign: 'center', padding: 'var(--space-4)' }}>
+                  <div style={{ fontSize: 'var(--font-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Worst Window</div>
+                  <div style={{ fontSize: 'var(--font-lg)', fontWeight: 600, color: '#EF4444' }}>{worstTiming}</div>
+                </div>
               </div>
             </div>
           )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'var(--space-8)', marginBottom: 'var(--space-8)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'var(--space-8)', marginBottom: 'var(--space-8)' }}>
           {/* Daily Behavior Chart */}
           <div className="glass-card" style={{ marginBottom: 'var(--space-8)' }}>
             <div className="section-header" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'baseline', gap: 'var(--space-2)' }}>

@@ -8,8 +8,7 @@ export default function ActivitySummary({ overview }) {
   ];
 
   return (
-    <div style={{ marginBottom: 'var(--space-4)' }}>
-      <h3 className="section-title" style={{ marginBottom: 'var(--space-4)' }}>Activity Summary</h3>
+    <div style={{ marginBottom: 'var(--space-4)', flex: 1 }}>
       <div className="activity-summary-grid">
         {cards.map((card, i) => (
           <div key={i} className="activity-summary-card animate-slide-up" style={{ animationDelay: `${i * 60}ms` }}>
