@@ -3,6 +3,7 @@ import { getDashboardOverview, getDashboardChart, getTaskSummary, getCategorySum
 import { getToday } from '../utils/helpers';
 import ActivitySummary from '../components/Dashboard/ActivitySummary';
 import PersonalButler from '../components/Dashboard/PersonalButler';
+import ExportReport from '../components/Dashboard/ExportReport';
 import { ComposedChart, LineChart, Line, BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 export default function DashboardPage() {
@@ -105,7 +106,18 @@ export default function DashboardPage() {
         )}
       </div>
 
-      <ActivitySummary overview={overview} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
+        <ActivitySummary overview={overview} />
+        <ExportReport
+          overview={overview}
+          chartData={chartData}
+          taskSummary={taskSummary}
+          categorySummary={categorySummary}
+          advancedMetrics={advancedMetrics}
+          distractionAnalytics={distractionAnalytics}
+          chartView={chartView}
+        />
+      </div>
 
       {loading ? (
         <div className="loading-container"><div className="spinner" /></div>
