@@ -1,26 +1,17 @@
 import { useState } from 'react';
 import { jsPDF } from 'jspdf';
 
-// ─── Dark Theme Palette ───
-const C = {
-  bg:      [13, 13, 13],
-  card:    [22, 22, 22],
-  cardAlt: [18, 18, 18],
-  white:   [255, 255, 255],
-  sec:     [161, 161, 161],
-  muted:   [100, 100, 100],
-  line:    [42, 42, 42],
-  green:   [74, 222, 128],
-  amber:   [250, 204, 21],
-  blue:    [96, 165, 250],
-  red:     [239, 68, 68],
-  purple:  [168, 130, 255],
-  cyan:    [34, 211, 238],
-  pink:    [251, 113, 133],
-  orange:  [251, 146, 60],
+// ─── Design Tokens (mm) ───
+const SP = { micro: 2, sm: 3, md: 4, lg: 6, xl: 8, section: 10 };
+const CLR = {
+  bg:    [13, 13, 13],
+  white: [255, 255, 255],
+  sec:   [161, 161, 161],
+  muted: [107, 107, 107],
+  line:  [31, 31, 31],
+  dot:   [96, 165, 250],    // blue
+  dots: [[96,165,250],[74,222,128],[250,204,21],[168,130,255],[34,211,238],[251,113,133],[251,146,60],[239,68,68]],
 };
-
-const catColors = [C.blue, C.green, C.amber, C.purple, C.cyan, C.pink, C.orange, C.red];
 
 function fmtDur(s) {
   if (!s || s <= 0) return '0s';
@@ -33,379 +24,328 @@ function fmtDur(s) {
 function generateReport({ overview, chartData, taskSummary, categorySummary, advancedMetrics, distractionAnalytics }) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const W = 210, H = 297;
-  const m = 10;
-  const cw = W - m * 2; // 190
+  const mx = 16, my = 12;       // margins
+  const cw = W - mx * 2;        // content width ~178
+  const leftW = cw * 0.58;      // ~60% left column
+  const rightX = mx + leftW + SP.xl;
+  const rightW = cw - leftW - SP.xl; // ~40% right column
 
-  const setC = (c) => doc.setTextColor(c[0], c[1], c[2]);
-  const setF = (c) => doc.setFillColor(c[0], c[1], c[2]);
-  const setD = (c) => doc.setDrawColor(c[0], c[1], c[2]);
+  const sc = (c) => doc.setTextColor(c[0], c[1], c[2]);
+  const sf = (c) => doc.setFillColor(c[0], c[1], c[2]);
 
-  // ── Background ──
-  setF(C.bg); doc.rect(0, 0, W, H, 'F');
+  // Background
+  sf(CLR.bg); doc.rect(0, 0, W, H, 'F');
 
-  let y = m;
+  let y = my;
 
-  // ═══════════════════════════════════════════
-  // HEADER
-  // ═══════════════════════════════════════════
-  // Pulse logo circle
-  setF(C.white);
-  doc.circle(m + 5, y + 5, 4, 'F');
-  setC(C.bg);
-  doc.setFont('times', 'bold'); doc.setFontSize(7);
-  doc.text('P', m + 3.8, y + 6.4);
+  // ─── Separator line ───
+  const drawLine = (ly) => {
+    sf(CLR.line); doc.rect(mx, ly, cw, 0.3, 'F');
+  };
 
-  // Title
-  doc.setFont('times', 'italic'); doc.setFontSize(24);
-  setC(C.white);
-  doc.text('Performance Report', m + 14, y + 7);
+  // ═══════════════════════════════════════════════
+  // TITLE
+  // ═══════════════════════════════════════════════
+  doc.setFont('times', 'normal'); doc.setFontSize(22);
+  sc(CLR.white);
+  doc.text('Performance Report', mx, y + 6);
+  y += 10;
 
   // Date
-  y += 12;
-  setF(C.line); doc.rect(m, y, cw, 0.3, 'F');
-  y += 3;
-  doc.setFont('times', 'normal'); doc.setFontSize(8);
-  setC(C.muted);
-  const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-  doc.text(dateStr, W / 2, y, { align: 'center' });
-  y += 5;
+  doc.setFont('times', 'normal'); doc.setFontSize(9);
+  sc(CLR.muted);
+  doc.text(new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }), mx, y);
+  y += SP.lg;
 
-  // ═══════════════════════════════════════════
-  // OVERVIEW — 3 metric cards side by side
-  // ═══════════════════════════════════════════
-  const drawSection = (x, sy, w, h, title) => {
-    setF(C.card); setD(C.line);
-    doc.roundedRect(x, sy, w, h, 2, 2, 'FD');
-    if (title) {
-      doc.setFont('times', 'bold'); doc.setFontSize(10);
-      setC(C.white);
-      doc.text(title, x + 5, sy + 6);
-    }
-  };
+  drawLine(y); y += SP.xl;
 
-  // Overview wrapper
-  drawSection(m, y, cw, 22, 'Overview');
-  const ov = [
-    { val: `${overview?.totalFocusHours ?? 0}`, unit: 'HOURS', sub: 'FOCUSED' },
-    { val: `${overview?.totalSessions ?? 0}`, unit: 'TOTAL', sub: 'SESSIONS' },
-    { val: `${overview?.streak ?? 0}`, unit: 'DAY', sub: 'STREAK' },
+  // ═══════════════════════════════════════════════
+  // KEY METRICS — Big numbers, horizontal
+  // ═══════════════════════════════════════════════
+  const metrics = [
+    { val: `${overview?.totalFocusHours ?? 0}`, label: 'Hours Focused' },
+    { val: `${overview?.totalSessions ?? 0}`, label: 'Total Sessions' },
+    { val: `${overview?.daysAccessed ?? 0}`, label: 'Days Active' },
+    { val: `${overview?.streak ?? 0}`, label: 'Day Streak' },
   ];
-  const ovCardW = (cw - 16) / 3;
+  const metricW = cw / metrics.length;
 
-  ov.forEach((item, i) => {
-    const cx = m + 5 + i * (ovCardW + 3);
-    const cy = y + 9;
+  metrics.forEach((m, i) => {
+    const cx = mx + i * metricW;
 
-    // Card bg
-    setF(C.cardAlt); setD(C.line);
-    doc.roundedRect(cx, cy, ovCardW, 11, 1.5, 1.5, 'FD');
+    // Big number
+    doc.setFont('times', 'bold'); doc.setFontSize(28);
+    sc(CLR.white);
+    doc.text(m.val, cx, y + 7);
 
-    // Value
-    doc.setFont('times', 'bold'); doc.setFontSize(18);
-    setC(C.white);
-    doc.text(item.val, cx + 5, cy + 7);
-
-    // Labels
-    doc.setFont('times', 'bold'); doc.setFontSize(6.5);
-    setC(C.sec);
-    const labelX = cx + 5 + doc.getTextWidth(item.val) * (18/doc.internal.getFontSize()) + 6;
-    doc.text(item.unit, cx + ovCardW - 4, cy + 4.5, { align: 'right' });
-    doc.text(item.sub, cx + ovCardW - 4, cy + 8, { align: 'right' });
+    // Label below
+    doc.setFont('times', 'normal'); doc.setFontSize(9);
+    sc(CLR.muted);
+    doc.text(m.label, cx, y + 12);
   });
+  y += 18;
 
-  y += 25;
+  drawLine(y); y += SP.section;
 
-  // ═══════════════════════════════════════════
-  // ADVANCED METRICS
-  // ═══════════════════════════════════════════
+  // ═══════════════════════════════════════════════
+  // ADVANCED METRICS — ledger rows
+  // ═══════════════════════════════════════════════
   if (advancedMetrics) {
-    drawSection(m, y, cw, 30, 'Advanced Metrics');
-    let ty = y + 10;
+    // Section title
+    doc.setFont('times', 'normal'); doc.setFontSize(11);
+    sc(CLR.sec);
+    doc.text('ADVANCED METRICS', mx, y);
+    y += SP.lg;
 
-    const metrics = [
-      { icon: '⚡', label: 'Efficiency Ratio', val: `${advancedMetrics.focusEfficiency}`, unit: 'hrs/friction' },
-      { icon: '🌙', label: 'Peak Zone', val: advancedMetrics.peakProductivityZone || 'N/A', unit: '' },
-      { icon: '📊', label: 'Session Density', val: `${advancedMetrics.sessionDensity}`, unit: 'sessions' },
-      { icon: '⚠', label: 'Total Friction', val: `${advancedMetrics.totalFriction}`, unit: 'events' },
+    const advRows = [
+      ['Efficiency Ratio', `${advancedMetrics.focusEfficiency}`, 'hrs / friction'],
+      ['Peak Productivity Zone', advancedMetrics.peakProductivityZone || 'None', ''],
+      ['Session Density', `${advancedMetrics.sessionDensity}`, 'sessions'],
+      ['Total Friction', `${advancedMetrics.totalFriction}`, 'events'],
     ];
 
-    metrics.forEach((met, i) => {
-      doc.setFont('times', 'normal'); doc.setFontSize(8);
-      setC(C.sec);
-      doc.text(met.label, m + 8, ty);
+    advRows.forEach(([label, val, unit]) => {
+      // Label
+      doc.setFont('times', 'normal'); doc.setFontSize(10);
+      sc(CLR.muted);
+      doc.text(label, mx, y);
 
-      doc.setFont('times', 'bold'); doc.setFontSize(12);
-      setC(C.white);
-      doc.text(met.val, m + 55, ty);
+      // Value — right aligned to left column
+      doc.setFont('times', 'bold'); doc.setFontSize(14);
+      sc(CLR.white);
+      const valW = doc.getTextWidth(val);
+      doc.text(val, mx + leftW - valW - (unit ? doc.getTextWidth(' ' + unit) * (9/14) + 2 : 0), y);
 
-      doc.setFont('times', 'normal'); doc.setFontSize(7);
-      setC(C.muted);
-      doc.text(met.unit, m + 55 + doc.getTextWidth(met.val) * (12 / 7) + 2, ty);
+      // Unit
+      if (unit) {
+        doc.setFont('times', 'normal'); doc.setFontSize(9);
+        sc(CLR.muted);
+        doc.text(unit, mx + leftW - doc.getTextWidth(unit), y);
+      }
 
-      ty += 5;
+      y += SP.md + 1;
     });
 
-    // Right side — category % list
-    if (categorySummary?.categories?.length > 0) {
-      const cats = categorySummary.categories;
-      const total = categorySummary.totalTime || 1;
-      let ry = y + 10;
-
-      cats.slice(0, 5).forEach((cat, i) => {
-        const pct = ((cat.time / total) * 100).toFixed(0);
-        const color = catColors[i % catColors.length];
-
-        // Colored square
-        setF(color);
-        doc.rect(m + 120, ry - 2.5, 3, 3, 'F');
-
-        doc.setFont('times', 'bold'); doc.setFontSize(9);
-        setC(C.white);
-        doc.text(`${pct}%`, m + 126, ry);
-
-        ry += 5;
-      });
-    }
-
-    y += 33;
+    y += SP.sm;
+    drawLine(y); y += SP.section;
   }
 
-  // ═══════════════════════════════════════════
-  // TWO-COLUMN BODY
-  // ═══════════════════════════════════════════
-  const gap = 4;
-  const halfW = (cw - gap) / 2;
-  const lx = m;
-  const rx = m + halfW + gap;
+  // ═══════════════════════════════════════════════
+  // TWO-COLUMN SECTION
+  // ═══════════════════════════════════════════════
+  const colStartY = y;
   let ly = y, ry = y;
 
-  // ── Helper: table header ──
-  const drawTableHeader = (x, ty, w, cols, labels) => {
-    setF(C.line); doc.rect(x + 3, ty, w - 6, 0.2, 'F');
-    ty += 3;
-    doc.setFont('times', 'bold'); doc.setFontSize(6);
-    setC(C.muted);
-    let cx = x + 4;
-    labels.forEach((label, i) => {
-      if (i === labels.length - 1) {
-        doc.text(label, x + w - 4, ty, { align: 'right' });
-      } else {
-        doc.text(label, cx, ty);
-      }
-      cx += cols[i];
-    });
-    return ty + 3;
-  };
-
-  // ═══════════════════════════════════════════
-  // LEFT: FOCUS CATEGORIES
-  // ═══════════════════════════════════════════
+  // ─── LEFT: FOCUS CATEGORIES ───
   if (categorySummary?.categories?.length > 0) {
+    doc.setFont('times', 'normal'); doc.setFontSize(11);
+    sc(CLR.sec);
+    doc.text('FOCUS CATEGORIES', mx, ly);
+    ly += SP.lg;
+
     const cats = categorySummary.categories;
     const total = categorySummary.totalTime || 1;
-    const rowH = 5;
-    const boxH = 10 + cats.length * rowH + 2;
-
-    drawSection(lx, ly, halfW, boxH, 'Focus Categories');
-
-    // Table header
-    let ty = ly + 8;
-    doc.setFont('times', 'bold'); doc.setFontSize(6);
-    setC(C.muted);
-    doc.text('CATEGORY', lx + 10, ty);
-    doc.text('TIME', lx + 42, ty);
-    doc.text('SESSIONS', lx + 58, ty);
-    doc.text('%', lx + halfW - 4, ty, { align: 'right' });
-
-    setF(C.line); doc.rect(lx + 4, ty + 1, halfW - 8, 0.2, 'F');
-    ty += 4;
 
     cats.forEach((cat, i) => {
       const pct = ((cat.time / total) * 100).toFixed(0);
-      const color = catColors[i % catColors.length];
+      const dotClr = CLR.dots[i % CLR.dots.length];
 
-      // Colored indicator
-      setF(color);
-      doc.roundedRect(lx + 5, ty - 2.5, 3, 3, 0.5, 0.5, 'F');
+      // Colored dot
+      sf(dotClr); doc.circle(mx + 1.5, ly - 1, 1.2, 'F');
 
-      doc.setFont('times', 'normal'); doc.setFontSize(7.5);
-      setC(C.white);
-      doc.text((cat.name || '—').substring(0, 16), lx + 10, ty);
+      // Name
+      doc.setFont('times', 'normal'); doc.setFontSize(10);
+      sc(CLR.white);
+      doc.text((cat.name || '—').substring(0, 18), mx + 5, ly);
 
-      setC(C.sec);
-      doc.text(fmtDur(cat.time), lx + 42, ty);
-      doc.text(String(cat.sessions), lx + 62, ty);
+      // Time — aligned
+      doc.setFontSize(10); sc(CLR.sec);
+      doc.text(fmtDur(cat.time), mx + 52, ly);
 
-      doc.setFont('times', 'bold');
-      setC(C.white);
-      doc.text(`${pct}%`, lx + halfW - 4, ty, { align: 'right' });
+      // Sessions
+      sc(CLR.muted); doc.setFontSize(9);
+      doc.text(`${cat.sessions}`, mx + 78, ly);
 
-      ty += rowH;
+      // Percentage — bold, right edge
+      doc.setFont('times', 'bold'); doc.setFontSize(11);
+      sc(CLR.white);
+      doc.text(`${pct}%`, mx + leftW - 2, ly, { align: 'right' });
+
+      ly += SP.md + SP.micro;
     });
 
-    ly += boxH + 3;
+    ly += SP.lg;
+
+    // Subtle separator for next section
+    sf(CLR.line); doc.rect(mx, ly, leftW, 0.2, 'F');
+    ly += SP.xl;
   }
 
-  // ═══════════════════════════════════════════
-  // LEFT: TASKS
-  // ═══════════════════════════════════════════
+  // ─── LEFT: TASKS ───
   if (taskSummary?.tasks?.length > 0) {
+    doc.setFont('times', 'normal'); doc.setFontSize(11);
+    sc(CLR.sec);
+    doc.text('TASKS', mx, ly);
+    ly += SP.lg;
+
     const tasks = taskSummary.tasks.slice(0, 10);
-    const rowH = 5;
-    const boxH = 10 + tasks.length * rowH + 2;
-
-    drawSection(lx, ly, halfW, boxH, 'Tasks');
-
-    let ty = ly + 8;
-    doc.setFont('times', 'bold'); doc.setFontSize(6);
-    setC(C.muted);
-    doc.text('TASK', lx + 10, ty);
-    doc.text('TIME', lx + 46, ty);
-    doc.text('DIST.', lx + halfW - 4, ty, { align: 'right' });
-
-    setF(C.line); doc.rect(lx + 4, ty + 1, halfW - 8, 0.2, 'F');
-    ty += 4;
 
     tasks.forEach((t, i) => {
-      const color = catColors[i % catColors.length];
+      const dotClr = CLR.dots[i % CLR.dots.length];
 
-      // Colored indicator
-      setF(color);
-      doc.roundedRect(lx + 5, ty - 2.5, 3, 3, 0.5, 0.5, 'F');
+      // Dot
+      sf(dotClr); doc.circle(mx + 1.5, ly - 1, 1.2, 'F');
 
-      doc.setFont('times', 'normal'); doc.setFontSize(7);
-      setC(C.white);
-      doc.text((t.title || '—').substring(0, 14), lx + 10, ty);
+      // Task name
+      doc.setFont('times', 'normal'); doc.setFontSize(9.5);
+      sc(CLR.white);
+      doc.text((t.title || '—').substring(0, 16), mx + 5, ly);
 
-      setC(C.muted); doc.setFontSize(6.5);
-      doc.text((t.category || '').substring(0, 10), lx + 34, ty);
+      // Category (muted)
+      doc.setFontSize(8); sc(CLR.muted);
+      doc.text((t.category || '').substring(0, 12), mx + 40, ly);
 
-      setC(C.sec); doc.setFontSize(7);
-      doc.text(fmtDur(t.time), lx + 51, ty);
+      // Time
+      doc.setFontSize(9.5); sc(CLR.sec);
+      doc.text(fmtDur(t.time), mx + 62, ly);
 
-      setC(t.distractions > 0 ? C.red : C.muted);
-      doc.setFont('times', 'bold');
-      doc.text(String(t.distractions), lx + halfW - 4, ty, { align: 'right' });
+      // Distractions — right edge
+      doc.setFont('times', 'bold'); doc.setFontSize(10);
+      sc(t.distractions > 0 ? CLR.dots[7] : CLR.muted); // red if > 0
+      doc.text(String(t.distractions), mx + leftW - 2, ly, { align: 'right' });
 
-      ty += rowH;
+      ly += SP.md + SP.micro;
     });
 
-    ly += boxH + 3;
+    ly += SP.lg;
   }
 
-  // ═══════════════════════════════════════════
-  // RIGHT: DISTRACTION ANALYSIS
-  // ═══════════════════════════════════════════
+  // ─── RIGHT: DISTRACTION ANALYSIS ───
   if (distractionAnalytics?.tasks?.length > 0) {
-    const items = distractionAnalytics.tasks;
-    const rowH = 5;
-    const boxH = 18 + items.length * rowH + 2;
+    doc.setFont('times', 'normal'); doc.setFontSize(11);
+    sc(CLR.sec);
+    doc.text('DISTRACTIONS', rightX, ry);
+    ry += SP.lg;
 
-    drawSection(rx, ry, halfW, boxH, 'Distraction Analysis');
+    distractionAnalytics.tasks.forEach((t, i) => {
+      const dotClr = CLR.dots[i % CLR.dots.length];
 
-    let ty = ry + 9;
-    doc.setFont('times', 'bold'); doc.setFontSize(7);
-    setC(C.sec);
-    doc.text('DISTRACTIONS BY CATEGORY', rx + 5, ty);
-    ty += 1;
+      // Dot
+      sf(dotClr); doc.circle(rightX + 1.5, ry - 1, 1.2, 'F');
 
-    doc.setFont('times', 'bold'); doc.setFontSize(6);
-    setC(C.muted);
-    doc.text('DIST.', rx + halfW - 4, ty + 2, { align: 'right' });
-    setF(C.line); doc.rect(rx + 4, ty + 3, halfW - 8, 0.2, 'F');
-    ty += 6;
+      // Category name
+      doc.setFont('times', 'normal'); doc.setFontSize(10);
+      sc(CLR.white);
+      doc.text((t.title || '—').substring(0, 18), rightX + 5, ry);
 
-    items.forEach((t, i) => {
-      const color = catColors[i % catColors.length];
+      // Count — right aligned, bold
+      doc.setFont('times', 'bold'); doc.setFontSize(12);
+      sc(t.distractions > 0 ? CLR.white : CLR.muted);
+      doc.text(String(t.distractions), rightX + rightW, ry, { align: 'right' });
 
-      // Colored square
-      setF(color);
-      doc.roundedRect(rx + 5, ty - 2.5, 3, 3, 0.5, 0.5, 'F');
-
-      doc.setFont('times', 'normal'); doc.setFontSize(7.5);
-      setC(C.white);
-      doc.text((t.title || '—').substring(0, 22), rx + 10, ty);
-
-      doc.setFont('times', 'bold'); doc.setFontSize(9);
-      setC(t.distractions > 0 ? C.white : C.muted);
-      doc.text(String(t.distractions), rx + halfW - 4, ty, { align: 'right' });
-
-      ty += rowH;
+      ry += SP.md + SP.micro;
     });
 
-    ry += boxH + 3;
+    ry += SP.lg;
+
+    // Separator
+    sf(CLR.line); doc.rect(rightX, ry, rightW, 0.2, 'F');
+    ry += SP.xl;
   }
 
-  // ═══════════════════════════════════════════
-  // RIGHT: DAILY LOG
-  // ═══════════════════════════════════════════
+  // ─── RIGHT: DAILY LOG ───
   if (chartData?.data?.length > 0) {
-    const days = chartData.data.slice(0, 10);
-    const rowH = 4.5;
-    const boxH = 12 + days.length * rowH + 2;
-    const periodLabel = chartData.periodLabel || '';
+    doc.setFont('times', 'normal'); doc.setFontSize(11);
+    sc(CLR.sec);
+    doc.text('DAILY LOG', rightX, ry);
 
-    drawSection(rx, ry, halfW, boxH, '');
+    // Period label
+    if (chartData.periodLabel) {
+      doc.setFontSize(8); sc(CLR.muted);
+      doc.text(chartData.periodLabel, rightX + doc.getTextWidth('DAILY LOG') * (11/8) + 4, ry);
+    }
+    ry += SP.lg;
 
-    let ty = ry + 5;
-    doc.setFont('times', 'bold'); doc.setFontSize(10);
-    setC(C.white);
-    doc.text('Daily Log', rx + 5, ty);
-
+    // Column headers
     doc.setFont('times', 'normal'); doc.setFontSize(7);
-    setC(C.muted);
-    doc.text(`- ${periodLabel}`, rx + 5 + doc.getTextWidth('Daily Log '), ty);
+    sc(CLR.muted);
+    doc.text('DAY', rightX, ry);
+    doc.text('HRS', rightX + 25, ry);
+    doc.text('DIST', rightX + 38, ry);
+    doc.text('BRK', rightX + rightW, ry, { align: 'right' });
+    ry += SP.sm;
 
-    ty += 4;
-    doc.setFont('times', 'bold'); doc.setFontSize(6);
-    setC(C.muted);
-    doc.text('DAY', rx + 5, ty);
-    doc.text('HRS', rx + 28, ty);
-    doc.text('DIST.', rx + 42, ty);
-    doc.text('BREAKS', rx + halfW - 4, ty, { align: 'right' });
+    sf(CLR.line); doc.rect(rightX, ry, rightW, 0.15, 'F');
+    ry += SP.sm;
 
-    setF(C.line); doc.rect(rx + 4, ty + 1, halfW - 8, 0.2, 'F');
-    ty += 4;
+    chartData.data.slice(0, 12).forEach((d) => {
+      doc.setFont('times', 'normal'); doc.setFontSize(9);
+      sc(CLR.white);
+      doc.text((d.fullLabel || d.label || '—').substring(0, 10), rightX, ry);
 
-    days.forEach((d, i) => {
-      // Alternating row bg
-      if (i % 2 === 0) {
-        setF(C.cardAlt);
-        doc.rect(rx + 3, ty - 3, halfW - 6, rowH, 'F');
-      }
+      sc(CLR.sec);
+      doc.text(String(d.hours ?? '0'), rightX + 25, ry);
 
-      doc.setFont('times', 'normal'); doc.setFontSize(7);
-      setC(C.white);
-      doc.text((d.fullLabel || d.label || '—').substring(0, 10), rx + 5, ty);
+      sc((d.distractions || 0) > 0 ? CLR.dots[7] : CLR.muted);
+      doc.text(String(d.distractions ?? '0'), rightX + 38, ry);
 
-      setC(C.sec);
-      doc.text(String(d.hours ?? '0'), rx + 28, ty);
+      sc((d.breaks || 0) > 0 ? CLR.dots[2] : CLR.muted);
+      doc.text(String(d.breaks ?? '0'), rightX + rightW, ry, { align: 'right' });
 
-      setC((d.distractions || 0) > 0 ? C.red : C.muted);
-      doc.text(String(d.distractions ?? '0'), rx + 42, ty);
-
-      setC((d.breaks || 0) > 0 ? C.amber : C.muted);
-      doc.text(String(d.breaks ?? '0'), rx + halfW - 4, ty, { align: 'right' });
-
-      ty += rowH;
+      ry += SP.md;
     });
 
-    ry += boxH + 3;
+    ry += SP.lg;
   }
 
-  // ═══════════════════════════════════════════
-  // FOOTER
-  // ═══════════════════════════════════════════
-  setF(C.line); doc.rect(m, H - 14, cw, 0.3, 'F');
+  // ═══════════════════════════════════════════════
+  // BOTTOM SECTION — Full width, after columns
+  // ═══════════════════════════════════════════════
+  y = Math.max(ly, ry) + SP.sm;
 
-  doc.setFont('times', 'italic'); doc.setFontSize(7);
-  setC(C.muted);
-  doc.text(`Generated by Pulse  ·  ${new Date().toLocaleString()}`, W / 2, H - 10, { align: 'center' });
+  // Only draw if we have room
+  if (y < H - 30) {
+    drawLine(y); y += SP.xl;
+
+    // Timing analysis as a horizontal band
+    if (distractionAnalytics?.timing?.length > 0) {
+      doc.setFont('times', 'normal'); doc.setFontSize(11);
+      sc(CLR.sec);
+      doc.text('DISTRACTION TIMING', mx, y);
+      y += SP.lg;
+
+      const timings = distractionAnalytics.timing;
+      const timingW = cw / Math.max(timings.length, 1);
+
+      timings.forEach((t, i) => {
+        const tx = mx + i * timingW;
+
+        doc.setFont('times', 'bold'); doc.setFontSize(16);
+        sc(CLR.white);
+        doc.text(String(t.count), tx, y + 4);
+
+        doc.setFont('times', 'normal'); doc.setFontSize(8);
+        sc(CLR.muted);
+        doc.text(t.name, tx, y + 8);
+      });
+
+      y += 14;
+    }
+  }
+
+  // ═══════════════════════════════════════════════
+  // FOOTER
+  // ═══════════════════════════════════════════════
+  drawLine(H - 16);
+
+  doc.setFont('times', 'italic'); doc.setFontSize(8);
+  sc(CLR.muted);
+  doc.text(`Pulse  ·  ${new Date().toLocaleString()}`, mx, H - 11);
 
   doc.save(`Pulse_Report_${new Date().toISOString().split('T')[0]}.pdf`);
 }
 
-// ─── Button Component ───
+// ─── Button ───
 export default function ExportReport({ overview, chartData, taskSummary, categorySummary, advancedMetrics, distractionAnalytics, chartView }) {
   const [generating, setGenerating] = useState(false);
 
