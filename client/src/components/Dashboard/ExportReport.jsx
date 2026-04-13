@@ -3,21 +3,20 @@ import { jsPDF } from 'jspdf';
 
 // ─── Color Palette (Dark Theme) ───
 const C = {
-  bg: [13, 13, 13],          // #0D0D0D
-  surface: [26, 26, 26],     // #1A1A1A
-  surfaceLight: [18, 18, 18],// #121212
-  white: [255, 255, 255],    // #FFFFFF
-  secondary: [161, 161, 161],// #A1A1A1
-  muted: [107, 107, 107],    // #6B6B6B
-  green: [74, 222, 128],     // #4ADE80
-  amber: [250, 204, 21],     // #FACC15
-  blue: [96, 165, 250],      // #60A5FA
-  red: [239, 68, 68],        // #EF4444
+  bg: [13, 13, 13],
+  surface: [26, 26, 26],
+  white: [255, 255, 255],
+  secondary: [161, 161, 161],
+  muted: [107, 107, 107],
+  green: [74, 222, 128],
+  amber: [250, 204, 21],
+  blue: [96, 165, 250],
+  red: [239, 68, 68],
+  line: [40, 40, 40],
 };
 
-// ─── Helper: Format seconds to readable ───
 function fmtDuration(seconds) {
-  if (!seconds || seconds <= 0) return '0m 0s';
+  if (!seconds || seconds <= 0) return '0s';
   const hrs = Math.floor(seconds / 3600);
   const mins = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;
@@ -26,463 +25,357 @@ function fmtDuration(seconds) {
   return `${secs}s`;
 }
 
-function fmtDate(dateStr) {
-  if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
-  });
-}
-
-function fmtTime(dateStr) {
-  if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleTimeString('en-US', {
-    hour: '2-digit', minute: '2-digit', hour12: true
-  });
-}
-
-// ─── PDF Generator ───
-function generateReport({
-  overview,
-  chartData,
-  taskSummary,
-  categorySummary,
-  advancedMetrics,
-  distractionAnalytics,
-  chartView,
-}) {
+// ─── ONE-PAGE NEWSPAPER LAYOUT ───
+function generateReport({ overview, chartData, taskSummary, categorySummary, advancedMetrics, distractionAnalytics, chartView }) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const W = doc.internal.pageSize.getWidth();
-  const H = doc.internal.pageSize.getHeight();
-  const margin = 20;
-  const contentW = W - margin * 2;
-  let y = 0;
+  const W = doc.internal.pageSize.getWidth(); // 210
+  const H = doc.internal.pageSize.getHeight(); // 297
+  const m = 10; // margin
+  const cw = W - m * 2; // content width = 190
+  const col = cw / 2; // column width = 95
+  const colGap = 4;
+  const leftX = m;
+  const rightX = m + col + colGap;
+  const rightW = col - colGap;
 
-  // ─── Utilities ───
-  const setColor = (rgb) => doc.setTextColor(rgb[0], rgb[1], rgb[2]);
-  const setFill = (rgb) => doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+  const setC = (rgb) => doc.setTextColor(rgb[0], rgb[1], rgb[2]);
+  const setF = (rgb) => doc.setFillColor(rgb[0], rgb[1], rgb[2]);
 
-  const drawBg = () => {
-    setFill(C.bg);
-    doc.rect(0, 0, W, H, 'F');
-  };
+  // ── Background ──
+  setF(C.bg);
+  doc.rect(0, 0, W, H, 'F');
 
-  const checkPage = (needed = 30) => {
-    if (y + needed > H - 20) {
-      doc.addPage();
-      drawBg();
-      y = margin;
-    }
-  };
+  let y = m;
 
-  const drawSeparator = () => {
-    checkPage(10);
-    setFill(C.surface);
-    doc.rect(margin, y, contentW, 0.3, 'F');
-    y += 12;
-  };
-
-  const drawSectionTitle = (text) => {
-    checkPage(20);
-    doc.setFontSize(10);
-    setColor(C.muted);
-    doc.text(text.toUpperCase(), margin, y);
-    y += 8;
-  };
-
-  const drawMetricRow = (label, value, insight = null, valueColor = C.white) => {
-    checkPage(insight ? 18 : 12);
-    doc.setFontSize(13);
-    setColor(valueColor);
-    doc.setFont('helvetica', 'bold');
-    doc.text(String(value), margin, y);
-
-    doc.setFontSize(11);
-    setColor(C.secondary);
-    doc.setFont('helvetica', 'normal');
-    const valWidth = doc.getTextWidth(String(value));
-    doc.text(`  ${label}`, margin + valWidth, y);
-    y += 6;
-
-    if (insight) {
-      doc.setFontSize(9);
-      setColor(C.muted);
-      doc.text(insight, margin, y);
-      y += 6;
-    }
-    y += 2;
-  };
-
-  const drawKeyValue = (label, value, x = margin, w = contentW) => {
-    checkPage(10);
-    doc.setFontSize(10);
-    setColor(C.muted);
-    doc.setFont('helvetica', 'normal');
-    doc.text(label, x, y);
-
-    doc.setFontSize(10);
-    setColor(C.white);
-    doc.setFont('helvetica', 'bold');
-    doc.text(String(value), x + w - doc.getTextWidth(String(value)), y);
-    y += 7;
-  };
-
-  // ─────────────────────────────────
-  // PAGE 1: HEADER + HERO SCORE
-  // ─────────────────────────────────
-  drawBg();
-  y = margin;
-
-  // Branding
-  doc.setFontSize(9);
-  setColor(C.muted);
-  doc.setFont('helvetica', 'normal');
-  doc.text('PULSE', margin, y);
-
-  const dateText = new Date().toLocaleDateString('en-US', {
-    month: 'long', day: 'numeric', year: 'numeric'
-  });
-  doc.text(dateText, W - margin - doc.getTextWidth(dateText), y);
-  y += 14;
-
-  // Title
+  // ═══════════════════════════════════════════
+  // MASTHEAD
+  // ═══════════════════════════════════════════
+  setC(C.white);
+  doc.setFont('times', 'bold');
   doc.setFontSize(28);
-  setColor(C.white);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Performance Report', margin, y);
-  y += 8;
+  doc.text('Performance Report', W / 2, y + 6, { align: 'center' });
+  y += 10;
 
-  // Subtitle
-  doc.setFontSize(11);
-  setColor(C.secondary);
-  doc.setFont('helvetica', 'normal');
-  const periodLabel = chartData?.periodLabel || `${chartView} view`;
-  doc.text(periodLabel, margin, y);
-  y += 20;
+  // Thin rule
+  setF(C.white);
+  doc.rect(m, y, cw, 0.4, 'F');
+  y += 3;
 
-  // ── Hero Score Block ──
-  setFill(C.surfaceLight);
-  doc.roundedRect(margin, y, contentW, 50, 3, 3, 'F');
-
-  const heroHours = overview?.totalFocusHours ?? 0;
-  doc.setFontSize(48);
-  setColor(C.white);
-  doc.setFont('helvetica', 'bold');
-  const heroText = `${heroHours}`;
-  const heroW = doc.getTextWidth(heroText);
-  doc.text(heroText, W / 2 - heroW / 2 - 5, y + 32);
-
-  doc.setFontSize(16);
-  setColor(C.secondary);
-  doc.setFont('helvetica', 'normal');
-  doc.text('hrs', W / 2 + heroW / 2 - 3, y + 32);
-
-  doc.setFontSize(10);
-  setColor(C.muted);
-  doc.text('Total Focus Time (All-Time)', W / 2 - doc.getTextWidth('Total Focus Time (All-Time)') / 2, y + 42);
-  y += 60;
-
-  // ── Overview Stats Row ──
-  const stats = [
-    { label: 'Sessions', value: overview?.totalSessions ?? 0 },
-    { label: 'Days Active', value: overview?.daysAccessed ?? 0 },
-    { label: 'Day Streak', value: overview?.streak ?? 0 },
-  ];
-  const statW = contentW / stats.length;
-  stats.forEach((s, i) => {
-    const sx = margin + i * statW;
-    doc.setFontSize(22);
-    setColor(C.white);
-    doc.setFont('helvetica', 'bold');
-    doc.text(String(s.value), sx + statW / 2 - doc.getTextWidth(String(s.value)) / 2, y);
-
-    doc.setFontSize(9);
-    setColor(C.muted);
-    doc.setFont('helvetica', 'normal');
-    doc.text(s.label, sx + statW / 2 - doc.getTextWidth(s.label) / 2, y + 6);
-  });
-  y += 20;
-
-  drawSeparator();
-
-  // ─────────────────────────────────
-  // ADVANCED METRICS
-  // ─────────────────────────────────
-  if (advancedMetrics) {
-    drawSectionTitle('Advanced Metrics');
-
-    drawMetricRow(
-      'Efficiency Ratio',
-      advancedMetrics.focusEfficiency,
-      'Hours of focus per friction event. Higher is better.',
-      C.blue
-    );
-    drawMetricRow(
-      'Peak Productivity Zone',
-      advancedMetrics.peakProductivityZone || 'None',
-      advancedMetrics.peakBucketHours
-        ? `${advancedMetrics.peakBucketHours} hours focused in this window.`
-        : null,
-      C.green
-    );
-    drawMetricRow(
-      'Session Density',
-      advancedMetrics.sessionDensity,
-      'Total focus sessions in this period.'
-    );
-    drawMetricRow(
-      'Total Friction Events',
-      advancedMetrics.totalFriction,
-      'Breaks + distractions + task switches combined.',
-      advancedMetrics.totalFriction > 10 ? C.red : C.amber
-    );
-
-    drawSeparator();
-  }
-
-  // ─────────────────────────────────
-  // CATEGORY BREAKDOWN
-  // ─────────────────────────────────
-  if (categorySummary?.categories?.length > 0) {
-    drawSectionTitle('Category Breakdown');
-
-    const totalCatTime = categorySummary.totalTime || 1;
-    categorySummary.categories.forEach((cat, i) => {
-      checkPage(18);
-      const pct = ((cat.time / totalCatTime) * 100).toFixed(1);
-
-      // Category name and time
-      doc.setFontSize(12);
-      setColor(i === 0 ? C.white : C.secondary);
-      doc.setFont('helvetica', i === 0 ? 'bold' : 'normal');
-      doc.text(cat.name, margin, y);
-
-      const timeStr = fmtDuration(cat.time);
-      doc.text(timeStr, W - margin - doc.getTextWidth(timeStr), y);
-      y += 5;
-
-      // Progress bar
-      setFill(C.surface);
-      doc.roundedRect(margin, y, contentW, 3, 1.5, 1.5, 'F');
-      const barW = Math.max(2, (parseFloat(pct) / 100) * contentW);
-      setFill(i === 0 ? C.white : C.secondary);
-      doc.roundedRect(margin, y, barW, 3, 1.5, 1.5, 'F');
-      y += 5;
-
-      // Percentage + sessions
-      doc.setFontSize(9);
-      setColor(C.muted);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`${pct}% of total  •  ${cat.sessions} session${cat.sessions !== 1 ? 's' : ''}`, margin, y);
-      y += 8;
-    });
-
-    drawSeparator();
-  }
-
-  // ─────────────────────────────────
-  // DISTRACTION ANALYSIS
-  // ─────────────────────────────────
-  if (distractionAnalytics) {
-    drawSectionTitle('Distraction & Interruption Analysis');
-
-    // Category distractions table
-    if (distractionAnalytics.tasks?.length > 0) {
-      // Header
-      checkPage(12);
-      doc.setFontSize(9);
-      setColor(C.muted);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Category', margin, y);
-      doc.text('Time', margin + 70, y);
-      doc.text('Breaks', margin + 100, y);
-      doc.text('Distractions', margin + 125, y);
-      y += 6;
-
-      distractionAnalytics.tasks.forEach(t => {
-        checkPage(8);
-        doc.setFontSize(10);
-        setColor(C.white);
-        doc.setFont('helvetica', 'normal');
-        doc.text(t.title || '—', margin, y);
-
-        setColor(C.secondary);
-        doc.text(fmtDuration(t.time), margin + 70, y);
-
-        setColor(t.breaks > 0 ? C.amber : C.muted);
-        doc.text(String(t.breaks), margin + 100, y);
-
-        setColor(t.distractions > 0 ? C.red : C.muted);
-        doc.text(String(t.distractions), margin + 125, y);
-        y += 7;
-      });
-      y += 4;
-    }
-
-    // Timing analysis
-    if (distractionAnalytics.timing?.length > 0) {
-      checkPage(30);
-      y += 4;
-      doc.setFontSize(10);
-      setColor(C.muted);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Distraction Timing:', margin, y);
-      y += 7;
-
-      distractionAnalytics.timing.forEach(t => {
-        checkPage(8);
-        drawKeyValue(`${t.name}`, `${t.count} distraction${t.count !== 1 ? 's' : ''}`);
-      });
-    }
-
-    drawSeparator();
-  }
-
-  // ─────────────────────────────────
-  // TASK-LEVEL DETAIL
-  // ─────────────────────────────────
-  if (taskSummary?.tasks?.length > 0) {
-    drawSectionTitle('Task Detail');
-
-    taskSummary.tasks.forEach(t => {
-      checkPage(22);
-
-      doc.setFontSize(11);
-      setColor(C.white);
-      doc.setFont('helvetica', 'bold');
-      doc.text(t.title, margin, y);
-      y += 5;
-
-      doc.setFontSize(9);
-      setColor(C.muted);
-      doc.setFont('helvetica', 'normal');
-      const meta = [
-        `${t.category}`,
-        `${fmtDuration(t.time)}`,
-        `${t.sessions} session${t.sessions !== 1 ? 's' : ''}`,
-        `${t.breaks} break${t.breaks !== 1 ? 's' : ''}`,
-        `${t.distractions} distraction${t.distractions !== 1 ? 's' : ''}`,
-      ].join('  •  ');
-      doc.text(meta, margin, y);
-      y += 9;
-    });
-
-    drawSeparator();
-  }
-
-  // ─────────────────────────────────
-  // DAILY BEHAVIOR DATA (Bar chart data as table)
-  // ─────────────────────────────────
-  if (chartData?.data?.length > 0) {
-    drawSectionTitle(`Daily Breakdown — ${chartData.periodLabel || ''}`);
-
-    // Header
-    checkPage(12);
-    doc.setFontSize(9);
-    setColor(C.muted);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Day', margin, y);
-    doc.text('Focus (hrs)', margin + 40, y);
-    doc.text('Distractions', margin + 75, y);
-    doc.text('Breaks', margin + 110, y);
-    y += 6;
-
-    chartData.data.forEach(d => {
-      checkPage(8);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-
-      setColor(C.white);
-      doc.text(d.fullLabel || d.label || '—', margin, y);
-
-      setColor(C.secondary);
-      doc.text(String(d.hours ?? '0'), margin + 40, y);
-
-      setColor((d.distractions || 0) > 0 ? C.red : C.muted);
-      doc.text(String(d.distractions ?? '0'), margin + 75, y);
-
-      setColor((d.breaks || 0) > 0 ? C.amber : C.muted);
-      doc.text(String(d.breaks ?? '0'), margin + 110, y);
-      y += 7;
-    });
-
-    drawSeparator();
-  }
-
-  // ─────────────────────────────────
-  // INSIGHT FOOTER
-  // ─────────────────────────────────
-  checkPage(40);
-  setFill(C.surfaceLight);
-  doc.roundedRect(margin, y, contentW, 28, 3, 3, 'F');
-
-  doc.setFontSize(10);
-  setColor(C.muted);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Takeaway', margin + 8, y + 8);
-
-  doc.setFontSize(11);
-  setColor(C.white);
-  doc.setFont('helvetica', 'italic');
-
-  // Generate a smart insight
-  let insight = 'Keep pushing. Consistency is the strategy.';
-  if (advancedMetrics) {
-    const eff = advancedMetrics.focusEfficiency;
-    const peak = advancedMetrics.peakProductivityZone;
-    const friction = advancedMetrics.totalFriction;
-
-    if (friction === 0) {
-      insight = 'Zero friction events. Absolute focus. This is your peak.';
-    } else if (eff >= 2) {
-      insight = `Strong efficiency at ${eff} hrs/friction. ${peak} is your power zone.`;
-    } else if (eff >= 1) {
-      insight = `Decent flow, but friction is creeping in. Protect your ${peak} window.`;
-    } else {
-      insight = `High friction detected. Consider shorter sessions and blocking ${peak} distractions.`;
-    }
-  }
-  
-  const splitInsight = doc.splitTextToSize(`"${insight}"`, contentW - 16);
-  doc.text(splitInsight, margin + 8, y + 16);
-  y += 36;
-
-  // ── Footer ──
-  checkPage(15);
+  // Date line
+  doc.setFont('times', 'normal');
   doc.setFontSize(8);
-  setColor(C.muted);
-  doc.setFont('helvetica', 'normal');
-  const footer = `Generated by Pulse  •  ${new Date().toLocaleString()}`;
-  doc.text(footer, W / 2 - doc.getTextWidth(footer) / 2, H - 10);
+  setC(C.muted);
+  const dateLine = `PULSE  ·  ${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`;
+  doc.text(dateLine, W / 2, y, { align: 'center' });
+  y += 2;
+
+  // Double rule
+  setF(C.white);
+  doc.rect(m, y, cw, 0.2, 'F');
+  y += 0.8;
+  doc.rect(m, y, cw, 0.6, 'F');
+  y += 3;
+
+  // ═══════════════════════════════════════════
+  // HERO ROW — 3 big numbers
+  // ═══════════════════════════════════════════
+  const heroStats = [
+    { val: `${overview?.totalFocusHours ?? 0}`, label: 'HOURS FOCUSED' },
+    { val: `${overview?.totalSessions ?? 0}`, label: 'TOTAL SESSIONS' },
+    { val: `${overview?.streak ?? 0}`, label: 'DAY STREAK' },
+  ];
+  const heroW = cw / heroStats.length;
+
+  heroStats.forEach((s, i) => {
+    const cx = m + i * heroW + heroW / 2;
+    doc.setFont('times', 'bold');
+    doc.setFontSize(32);
+    setC(C.white);
+    doc.text(s.val, cx, y + 8, { align: 'center' });
+
+    doc.setFont('times', 'normal');
+    doc.setFontSize(6);
+    setC(C.muted);
+    doc.text(s.label, cx, y + 12, { align: 'center' });
+  });
+  y += 16;
+
+  // Rule
+  setF(C.line);
+  doc.rect(m, y, cw, 0.3, 'F');
+  y += 4;
+
+  // ═══════════════════════════════════════════
+  // TWO-COLUMN LAYOUT STARTS
+  // ═══════════════════════════════════════════
+  let ly = y; // left column Y
+  let ry = y; // right column Y
+
+  // ─── Helper: draw a bordered box with title ───
+  const drawBox = (x, bY, w, h, title) => {
+    setF(C.surface);
+    doc.rect(x, bY, w, h, 'F');
+    doc.setDrawColor(C.line[0], C.line[1], C.line[2]);
+    doc.rect(x, bY, w, h, 'S');
+    if (title) {
+      doc.setFont('times', 'bold');
+      doc.setFontSize(7);
+      setC(C.muted);
+      doc.text(title.toUpperCase(), x + 3, bY + 4);
+    }
+  };
+
+  // ─── Helper: draw a table row ───
+  const tableRow = (x, rowY, cols, values, bold = false, valueColors = null) => {
+    doc.setFont('times', bold ? 'bold' : 'normal');
+    doc.setFontSize(7);
+    let cx = x + 2;
+    values.forEach((v, i) => {
+      setC(valueColors?.[i] || (bold ? C.white : C.secondary));
+      const colW = cols[i];
+      if (i === values.length - 1) {
+        doc.text(String(v), cx + colW - 2, rowY, { align: 'right' });
+      } else {
+        doc.text(String(v), cx, rowY);
+      }
+      cx += colW;
+    });
+  };
+
+  // ═══════════════════════════════════════════
+  // LEFT COLUMN
+  // ═══════════════════════════════════════════
+
+  // ── ADVANCED METRICS BOX ──
+  if (advancedMetrics) {
+    const boxH = 28;
+    drawBox(leftX, ly, col, boxH, 'Advanced Metrics');
+    let ty = ly + 8;
+    const rows = [
+      ['Efficiency Ratio', advancedMetrics.focusEfficiency, 'hrs/friction'],
+      ['Peak Zone', advancedMetrics.peakProductivityZone || 'N/A', ''],
+      ['Session Density', advancedMetrics.sessionDensity, 'sessions'],
+      ['Total Friction', advancedMetrics.totalFriction, 'events'],
+    ];
+    rows.forEach(([label, val, unit]) => {
+      doc.setFont('times', 'normal');
+      doc.setFontSize(7);
+      setC(C.secondary);
+      doc.text(label, leftX + 3, ty);
+      doc.setFont('times', 'bold');
+      setC(C.white);
+      const valStr = `${val}${unit ? ' ' + unit : ''}`;
+      doc.text(valStr, leftX + col - 3, ty, { align: 'right' });
+      ty += 5;
+    });
+    ly += boxH + 3;
+  }
+
+  // ── CATEGORY BREAKDOWN TABLE ──
+  if (categorySummary?.categories?.length > 0) {
+    const cats = categorySummary.categories;
+    const totalTime = categorySummary.totalTime || 1;
+    const rowH = 4.5;
+    const boxH = 7 + cats.length * rowH + 2;
+    drawBox(leftX, ly, col, boxH, 'Categories');
+
+    let ty = ly + 8;
+    // Header
+    doc.setFont('times', 'bold');
+    doc.setFontSize(6);
+    setC(C.muted);
+    doc.text('NAME', leftX + 3, ty);
+    doc.text('TIME', leftX + 50, ty);
+    doc.text('SESSIONS', leftX + 68, ty);
+    doc.text('%', leftX + col - 3, ty, { align: 'right' });
+    ty += 1;
+    setF(C.line);
+    doc.rect(leftX + 2, ty, col - 4, 0.2, 'F');
+    ty += 3;
+
+    cats.forEach(cat => {
+      const pct = ((cat.time / totalTime) * 100).toFixed(0);
+      doc.setFont('times', 'normal');
+      doc.setFontSize(7);
+      setC(C.white);
+      doc.text((cat.name || '—').substring(0, 18), leftX + 3, ty);
+      setC(C.secondary);
+      doc.text(fmtDuration(cat.time), leftX + 50, ty);
+      doc.text(String(cat.sessions), leftX + 68, ty);
+      doc.text(`${pct}%`, leftX + col - 3, ty, { align: 'right' });
+      ty += rowH;
+    });
+
+    ly += boxH + 3;
+  }
+
+  // ── TASK DETAIL TABLE ──
+  if (taskSummary?.tasks?.length > 0) {
+    const tasks = taskSummary.tasks.slice(0, 12); // max 12 tasks to fit
+    const rowH = 4.5;
+    const boxH = 7 + tasks.length * rowH + 2;
+    drawBox(leftX, ly, col, boxH, 'Tasks');
+
+    let ty = ly + 8;
+    doc.setFont('times', 'bold');
+    doc.setFontSize(6);
+    setC(C.muted);
+    doc.text('TASK', leftX + 3, ty);
+    doc.text('CATEGORY', leftX + 38, ty);
+    doc.text('TIME', leftX + 62, ty);
+    doc.text('DIST.', leftX + col - 3, ty, { align: 'right' });
+    ty += 1;
+    setF(C.line);
+    doc.rect(leftX + 2, ty, col - 4, 0.2, 'F');
+    ty += 3;
+
+    tasks.forEach(t => {
+      doc.setFont('times', 'normal');
+      doc.setFontSize(6.5);
+      setC(C.white);
+      doc.text((t.title || '—').substring(0, 16), leftX + 3, ty);
+      setC(C.muted);
+      doc.text((t.category || '—').substring(0, 10), leftX + 38, ty);
+      setC(C.secondary);
+      doc.text(fmtDuration(t.time), leftX + 62, ty);
+      setC(t.distractions > 0 ? C.red : C.muted);
+      doc.text(String(t.distractions), leftX + col - 3, ty, { align: 'right' });
+      ty += rowH;
+    });
+
+    ly += boxH + 3;
+  }
+
+  // ═══════════════════════════════════════════
+  // RIGHT COLUMN
+  // ═══════════════════════════════════════════
+
+  // ── DISTRACTION ANALYSIS BOX ──
+  if (distractionAnalytics?.tasks?.length > 0) {
+    const items = distractionAnalytics.tasks;
+    const rowH = 4.5;
+    const boxH = 7 + items.length * rowH + 2;
+    drawBox(rightX, ry, rightW, boxH, 'Distractions by Category');
+
+    let ty = ry + 8;
+    doc.setFont('times', 'bold');
+    doc.setFontSize(6);
+    setC(C.muted);
+    doc.text('CATEGORY', rightX + 3, ty);
+    doc.text('BREAKS', rightX + 50, ty);
+    doc.text('DIST.', rightX + rightW - 3, ty, { align: 'right' });
+    ty += 1;
+    setF(C.line);
+    doc.rect(rightX + 2, ty, rightW - 4, 0.2, 'F');
+    ty += 3;
+
+    items.forEach(t => {
+      doc.setFont('times', 'normal');
+      doc.setFontSize(7);
+      setC(C.white);
+      doc.text((t.title || '—').substring(0, 22), rightX + 3, ty);
+      setC(t.breaks > 0 ? C.amber : C.muted);
+      doc.text(String(t.breaks), rightX + 50, ty);
+      setC(t.distractions > 0 ? C.red : C.muted);
+      doc.text(String(t.distractions), rightX + rightW - 3, ty, { align: 'right' });
+      ty += rowH;
+    });
+
+    ry += boxH + 3;
+  }
+
+  // ── TIMING ANALYSIS BOX ──
+  if (distractionAnalytics?.timing?.length > 0) {
+    const timings = distractionAnalytics.timing;
+    const rowH = 4.5;
+    const boxH = 7 + timings.length * rowH + 2;
+    drawBox(rightX, ry, rightW, boxH, 'Distraction Timing');
+
+    let ty = ry + 8;
+    doc.setFont('times', 'bold');
+    doc.setFontSize(6);
+    setC(C.muted);
+    doc.text('WINDOW', rightX + 3, ty);
+    doc.text('COUNT', rightX + rightW - 3, ty, { align: 'right' });
+    ty += 1;
+    setF(C.line);
+    doc.rect(rightX + 2, ty, rightW - 4, 0.2, 'F');
+    ty += 3;
+
+    timings.forEach(t => {
+      doc.setFont('times', 'normal');
+      doc.setFontSize(7);
+      setC(C.white);
+      doc.text(t.name || '—', rightX + 3, ty);
+      setC(C.secondary);
+      doc.text(String(t.count), rightX + rightW - 3, ty, { align: 'right' });
+      ty += rowH;
+    });
+
+    ry += boxH + 3;
+  }
+
+  // ── DAILY BREAKDOWN TABLE ──
+  if (chartData?.data?.length > 0) {
+    const days = chartData.data.slice(0, 14); // max 14 days
+    const rowH = 4.2;
+    const boxH = 7 + days.length * rowH + 2;
+    drawBox(rightX, ry, rightW, boxH, `Daily Log · ${chartData.periodLabel || ''}`);
+
+    let ty = ry + 8;
+    doc.setFont('times', 'bold');
+    doc.setFontSize(6);
+    setC(C.muted);
+    doc.text('DAY', rightX + 3, ty);
+    doc.text('HRS', rightX + 35, ty);
+    doc.text('DIST.', rightX + 52, ty);
+    doc.text('BREAKS', rightX + rightW - 3, ty, { align: 'right' });
+    ty += 1;
+    setF(C.line);
+    doc.rect(rightX + 2, ty, rightW - 4, 0.2, 'F');
+    ty += 3;
+
+    days.forEach(d => {
+      doc.setFont('times', 'normal');
+      doc.setFontSize(6.5);
+      setC(C.white);
+      doc.text(d.fullLabel || d.label || '—', rightX + 3, ty);
+      setC(C.secondary);
+      doc.text(String(d.hours ?? '0'), rightX + 35, ty);
+      setC((d.distractions || 0) > 0 ? C.red : C.muted);
+      doc.text(String(d.distractions ?? '0'), rightX + 52, ty);
+      setC((d.breaks || 0) > 0 ? C.amber : C.muted);
+      doc.text(String(d.breaks ?? '0'), rightX + rightW - 3, ty, { align: 'right' });
+      ty += rowH;
+    });
+
+    ry += boxH + 3;
+  }
+
+  // ═══════════════════════════════════════════
+  // FOOTER
+  // ═══════════════════════════════════════════
+  setF(C.white);
+  doc.rect(m, H - 14, cw, 0.2, 'F');
+  doc.rect(m, H - 13.6, cw, 0.5, 'F');
+
+  doc.setFont('times', 'italic');
+  doc.setFontSize(7);
+  setC(C.muted);
+  doc.text(`Generated by Pulse  ·  ${new Date().toLocaleString()}`, W / 2, H - 10, { align: 'center' });
 
   // ── Save ──
-  const filename = `Pulse_Report_${new Date().toISOString().split('T')[0]}.pdf`;
-  doc.save(filename);
+  doc.save(`Pulse_Report_${new Date().toISOString().split('T')[0]}.pdf`);
 }
 
-// ─── Export Button Component ───
-export default function ExportReport({
-  overview,
-  chartData,
-  taskSummary,
-  categorySummary,
-  advancedMetrics,
-  distractionAnalytics,
-  chartView,
-}) {
+// ─── Export Button ───
+export default function ExportReport({ overview, chartData, taskSummary, categorySummary, advancedMetrics, distractionAnalytics, chartView }) {
   const [generating, setGenerating] = useState(false);
 
   const handleExport = () => {
     setGenerating(true);
     try {
-      generateReport({
-        overview,
-        chartData,
-        taskSummary,
-        categorySummary,
-        advancedMetrics,
-        distractionAnalytics,
-        chartView,
-      });
+      generateReport({ overview, chartData, taskSummary, categorySummary, advancedMetrics, distractionAnalytics, chartView });
     } catch (err) {
       console.error('PDF generation failed:', err);
     } finally {
